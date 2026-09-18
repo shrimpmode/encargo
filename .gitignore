@@ -1,0 +1,5 @@
+# macOS
+.DS_Store
+
+# Client-provided prototype screenshots — not part of the pushed repo
+screens/
