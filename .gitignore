@@ -1,5 +1,9 @@
 # macOS
 .DS_Store
 
+# Editors
+.vscode/
+.idea/
+
 # Client-provided prototype screenshots — not part of the pushed repo
 screens/
