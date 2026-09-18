@@ -94,7 +94,7 @@ than left implied.
 
 ## Phase 3 — Guest status & position
 
-- [ ] **T3.1** [P] Repository: `list_waiting(restaurant_id)` — a restaurant's
+- [x] **T3.1** [P] Repository: `list_waiting(restaurant_id)` — a restaurant's
   `waiting` entries ordered by `(joined_at, id)`. At pilot scale (≤40
   waiting entries per restaurant), this single ordered list is all that's
   needed for position — no SQL rank/window function. This same method is
@@ -104,7 +104,10 @@ than left implied.
   Check: manual — seed a few `waiting` entries plus one `called` entry,
   confirm the query returns only the waiting ones, in join order. No test —
   a read query, not a state transition.
-- [ ] **T3.2** Service: `get_status(token)` returns state + position while
+  Done: joined 3 guests, flipped one to `called` directly in the DB
+  (simulating the not-yet-built call action), confirmed `list_waiting`
+  returned only the other two, in join order.
+- [x] **T3.2** Service: `get_status(token)` returns state + position while
   `waiting`, computed as the entry's index (+1) in `list_waiting`'s result.
   Files: `backend/app/services/waitlist_service.py`.
   Depends on: T3.1, T2.2.
@@ -112,32 +115,49 @@ than left implied.
   matches where the entry falls in the ordered list. No test — services
   aren't tested per instruction. (The "position omitted once called" case
   is added in T5.5, once calling exists.)
-- [ ] **T3.3** Endpoint: `GET /waitlist/status/{token}`.
-  Files: `backend/app/api/routes/guest.py`.
+  Done: 3 guests joined in sequence showed positions 1/2/3; after the
+  middle one was flipped to `called`, the third guest's position updated
+  to 2 and the called guest's status returned `position: null` — the
+  T5.5 deferred case already falls out of this design for free.
+- [x] **T3.3** Endpoint: `GET /waitlist/status/{token}`.
+  Files: `backend/app/api/routes/guest.py`, `app/schemas.py` (`StatusResponse`),
+  `app/main.py` (404 handler for an unknown token).
   Depends on: T3.2.
   Check: manual — confirm the endpoint reflects position changes as other
   entries are added.
-- [ ] **T3.4** Status page: polls the status endpoint every 5 seconds,
+  Done: curl'd the endpoint through the same sequence above; also confirmed
+  an unknown token returns `404` instead of a 500.
+- [x] **T3.4** Status page: polls the status endpoint every 5 seconds,
   displays position.
   Files: `frontend/src/pages/Status.tsx`, `frontend/src/api/client.ts`
   (shared polling hook).
   Depends on: T3.3.
   Check: manual run — join twice, confirm the first guest's position
   updates within 5s as expected.
+  Done: `npm run build`/`lint` clean; `/status/:token` resolves at `200` in
+  the dev server; CORS confirmed for the status endpoint from the frontend
+  origin. The live 5s re-render in an actual browser wasn't observed — no
+  Chrome automation this session (see gap note below).
 
 ## Phase 4 — Host queue view
 
-- [ ] **T4.1** Endpoint: `GET /restaurants/{id}/waitlist`, backed directly by
+- [x] **T4.1** Endpoint: `GET /restaurants/{id}/waitlist`, backed directly by
   T3.1's `list_waiting` — no new repository query.
-  Files: `backend/app/api/routes/host.py`.
+  Files: `backend/app/api/routes/host.py`, `app/schemas.py`
+  (`WaitlistEntryResponse`).
   Depends on: T3.1.
   Check: manual — confirm the endpoint returns entries in join order.
-- [ ] **T4.2** Host page: polls the queue endpoint every 5 seconds, lists
+  Done: curl'd it after joining 3 guests — returned all 3 in join order
+  with `id`/`name`/`party_size`/`joined_at`.
+- [x] **T4.2** Host page: polls the queue endpoint every 5 seconds, lists
   name/party size/elapsed wait.
   Files: `frontend/src/pages/Host.tsx`.
   Depends on: T4.1.
   Check: manual run — join a few guests, confirm they appear on the host
   page within 5s, in order.
+  Done: `npm run build`/`lint` clean; `/host` resolves at `200` in the dev
+  server; CORS confirmed for the host-list endpoint. Same live-browser gap
+  as T3.4 — not observed rendering in an actual DOM this session.
 
 ## Phase 5 — Call action & conflict handling (core concurrency slice)
 
