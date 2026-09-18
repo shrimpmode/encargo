@@ -1,4 +1,7 @@
-from sqlalchemy import select
+from datetime import UTC, datetime
+from typing import Any, cast
+
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import WaitlistEntry, WaitlistState
@@ -27,6 +30,19 @@ class WaitlistRepository:
             select(WaitlistEntry).where(WaitlistEntry.status_token == status_token)
         )
         return entry
+
+    async def call_entry(self, restaurant_id: int, entry_id: int) -> bool:
+        result = await self._db.execute(
+            update(WaitlistEntry)
+            .where(
+                WaitlistEntry.id == entry_id,
+                WaitlistEntry.restaurant_id == restaurant_id,
+                WaitlistEntry.state == WaitlistState.WAITING,
+            )
+            .values(state=WaitlistState.CALLED, called_at=datetime.now(UTC))
+        )
+        await self._db.commit()
+        return cast("CursorResult[Any]", result).rowcount == 1
 
     async def list_waiting(self, restaurant_id: int) -> list[WaitlistEntry]:
         result = await self._db.scalars(

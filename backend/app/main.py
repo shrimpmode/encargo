@@ -10,7 +10,7 @@ from app.api.deps import DbSession
 from app.api.routes.guest import router as guest_router
 from app.api.routes.host import router as host_router
 from app.config import settings
-from app.services.waitlist_service import WaitlistEntryNotFoundError
+from app.services.waitlist_service import WaitlistCallConflictError, WaitlistEntryNotFoundError
 
 
 @asynccontextmanager
@@ -34,6 +34,15 @@ def create_app() -> FastAPI:
         request: Request, exc: WaitlistEntryNotFoundError
     ) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": "waitlist entry not found"})
+
+    @app.exception_handler(WaitlistCallConflictError)
+    async def waitlist_call_conflict_handler(
+        request: Request, exc: WaitlistCallConflictError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "entry already called, seated, or not found in this restaurant"},
+        )
 
     @app.get("/health")
     def health() -> dict[str, str]:

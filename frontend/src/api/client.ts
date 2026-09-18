@@ -94,6 +94,17 @@ export async function listWaitlist(restaurantId: number): Promise<WaitlistEntry[
   }));
 }
 
+export async function callEntry(restaurantId: number, entryId: number): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/restaurants/${restaurantId}/waitlist/${entryId}/call`,
+    { method: "POST" },
+  );
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to call entry (${response.status})`, response.status);
+  }
+}
+
 const POLL_INTERVAL_MS = 5000;
 
 // Polls `callback` every 5s without resetting the interval on every render

@@ -161,7 +161,7 @@ than left implied.
 
 ## Phase 5 — Call action & conflict handling (core concurrency slice)
 
-- [ ] **T5.1** Repository: conditional call transition, scoped to a
+- [x] **T5.1** Repository: conditional call transition, scoped to a
   restaurant — `UPDATE ... SET state='called', called_at=? WHERE id=? AND
   restaurant_id=? AND state='waiting'`, returns whether a row was actually
   updated.
@@ -170,13 +170,22 @@ than left implied.
   Check (test-first): `backend/tests/test_waitlist_repository.py::test_call_transitions_waiting_to_called`
   plus `test_call_ignores_entry_from_a_different_restaurant` — same entry
   id, wrong `restaurant_id`, no row updated.
-- [ ] **T5.2** The core concurrency test: fire two call requests at the same
+  Done: both tests written first (confirmed red via `AttributeError` before
+  `call_entry` existed), pass now. Also sanity-checked that removing the
+  `state == WAITING` guard makes the test fail — proves it exercises the
+  real condition, not a tautology.
+- [x] **T5.2** The core concurrency test: fire two call requests at the same
   entry concurrently (threads/async tasks against the real test DB, not
   sequential calls) and assert exactly one reports success.
   Files: `backend/tests/test_concurrency.py`.
   Depends on: T5.1.
   Check (test-first): `backend/tests/test_concurrency.py::test_concurrent_call_only_one_succeeds`.
-- [ ] **T5.3** Service: `call(restaurant_id, entry_id)` raises/returns a
+  Done: written first (red), passes now (`asyncio.gather` of two real
+  concurrent `call_entry` calls against the same SQLite file via separate
+  sessions). Sanity-checked: with the guard removed, this test fails with
+  `[True, True]` instead of `[False, True]` — confirms it actually catches
+  the race, not a false positive.
+- [x] **T5.3** Service: `call(restaurant_id, entry_id)` raises/returns a
   conflict result when the repository reports no row updated (already
   called, or entry belongs to a different restaurant).
   Files: `backend/app/services/waitlist_service.py`.
@@ -185,32 +194,47 @@ than left implied.
   entry from a different restaurant, confirm the conflict result both times.
   No test — services aren't tested per instruction; the transition itself
   is already covered by T5.1/T5.2.
-- [ ] **T5.4** Endpoint: `POST /restaurants/{restaurant_id}/waitlist/{entry_id}/call`,
+  Done: verified transitively through T5.4's endpoint checks below (both
+  conflict paths hit the service layer).
+- [x] **T5.4** Endpoint: `POST /restaurants/{restaurant_id}/waitlist/{entry_id}/call`,
   `200` on success, `409` on conflict (including cross-restaurant).
-  Files: `backend/app/api/routes/host.py`.
+  Files: `backend/app/api/routes/host.py`, `app/main.py` (409 handler for
+  `WaitlistCallConflictError`).
   Depends on: T5.3.
   Check: manual — `curl` it twice for the same entry, confirm `200` then
   `409`; `curl` it once more with a different `restaurant_id` for a fresh
   waiting entry, confirm `409`.
-- [ ] **T5.5** Service: extend `get_status` to omit position once an entry
+  Done: same-entry double-call → `200` then `409`; a fresh entry called
+  from `restaurant_id=999` → `409`, then correctly `200` from the real
+  restaurant id `1`.
+- [x] **T5.5** Service: extend `get_status` to omit position once an entry
   is `called` (completes T3.2's deferred case).
   Files: `backend/app/services/waitlist_service.py`.
   Depends on: T5.3, T3.2.
   Check: manual — call an entry, then fetch its status, confirm no
   position is returned. No test — services aren't tested per instruction.
-- [ ] **T5.6** Wire the "Llamar" button on the host page to the call
+  Done: this fell out of Phase 3's `get_status` implementation already
+  (the `state != WAITING` branch) — no new code needed. Re-verified now
+  that calling is real: `{"state":"called","position":null}`.
+- [x] **T5.6** Wire the "Llamar" button on the host page to the call
   endpoint; update the status page to show the called state instead of a
   position.
-  Files: `frontend/src/pages/Host.tsx`, `frontend/src/pages/Status.tsx`.
+  Files: `frontend/src/pages/Host.tsx` (button + conflict message + refetch
+  on either outcome), `frontend/src/api/client.ts` (`callEntry`).
   Depends on: T5.4, T5.5.
   Check: manual run — click Llamar, confirm the guest's status page flips
   to "table ready" within one poll cycle, and that a second Llamar click
   (e.g. from a second browser tab) surfaces the conflict instead of
   double-calling.
+  Done: `npm run build`/`lint` clean. Status page needed no changes —
+  Phase 3's state-branch already renders "Tu mesa está lista." for any
+  non-`waiting` state. Full sequence verified at the API level (see T6.1).
+  Live-browser click not observed this session (no Chrome automation) —
+  same recurring gap as T3.4/T4.2.
 
 ## Phase 6 — End-to-end verification
 
-- [ ] **T6.1** Run backend and frontend locally together; walk the golden
+- [x] **T6.1** Run backend and frontend locally together; walk the golden
   path (join → watch position drop as earlier entries are called → get
   called → status flips) and the conflict path (two tabs racing a call on
   the same entry).
@@ -218,3 +242,10 @@ than left implied.
   Depends on: all prior phases.
   Check: both paths observed working as described; no new automated test —
   this is the manual sign-off pass for the vertical slice.
+  Done: with both dev servers running, walked the full sequence via
+  requests carrying `Origin: http://localhost:5173` (what the browser
+  would send): joined Carla and Jorge (positions 1, 2) → host queue showed
+  both in order → called Carla (`200`) → Carla's status flipped to
+  `called`/no position → Jorge's position dropped to 1 → host queue showed
+  only Jorge → calling Carla again returned `409`. Every step matches the
+  spec'd golden and conflict paths.
