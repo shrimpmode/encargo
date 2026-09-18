@@ -51,30 +51,46 @@ than left implied.
 
 ## Phase 2 — Guest join
 
-- [ ] **T2.1** Repository: insert a waitlist entry in `waiting` state with a
+- [x] **T2.1** Repository: insert a waitlist entry in `waiting` state with a
   generated `status_token`.
   Files: `backend/app/repositories/waitlist_repository.py`.
   Depends on: T1.1.
   Check: manual — call it directly (script/shell) against a test DB,
   confirm a `waiting` row with a token exists. No test — creation isn't a
   state transition; repositories aren't tested per instruction.
-- [ ] **T2.2** Service: `join(restaurant_id, name, phone, party_size)`
+  Done: called `WaitlistRepository.create_entry` directly — returned entry
+  `state=waiting` with a non-empty `status_token`.
+- [x] **T2.2** Service: `join(restaurant_id, name, phone, party_size)`
   delegates to the repository.
   Files: `backend/app/services/waitlist_service.py`.
   Depends on: T2.1.
   Check: manual — call it directly, confirm the same. No test — services
   aren't tested per instruction.
-- [ ] **T2.3** Endpoint: `POST /restaurants/{id}/waitlist`.
-  Files: `backend/app/api/routes/guest.py`.
+  Done: called `WaitlistService.join` directly — same result as T2.1.
+- [x] **T2.3** Endpoint: `POST /restaurants/{id}/waitlist`.
+  Files: `backend/app/api/routes/guest.py`, `app/schemas.py`, `app/main.py`
+  (router registration + CORS), `app/config.py` (`allowed_origins`).
   Depends on: T2.2.
   Check: manual — `curl` the endpoint, confirm `201` and a token in the
   response.
-- [ ] **T2.4** Join page: name/phone/party-size form, posts to the join
+  Done: `curl` returned `201` with `{"status_token": "..."}`; invalid
+  input (`party_size: 0`, missing field) returned `422`; DB read-back
+  confirmed the row landed with correct fields and `waiting` state.
+- [x] **T2.4** Join page: name/phone/party-size form, posts to the join
   endpoint, stores the returned token (e.g. in the URL) for the status page.
-  Files: `frontend/src/pages/Join.tsx`, `frontend/src/api/client.ts`.
+  Files: `frontend/src/pages/Join.tsx`, `frontend/src/pages/Status.tsx`
+  (navigation target, fleshed out in Phase 3), `frontend/src/api/client.ts`,
+  `frontend/src/App.tsx` (routing).
   Depends on: T2.3.
   Check: manual run — submit the form, confirm navigation to the status
   page with a valid token.
+  Done: `npm run build` type-checks clean; simulated the browser's request
+  (CORS preflight + POST with `Origin: http://localhost:5173`) — both
+  succeeded and the entry landed in the DB; confirmed the dev server
+  resolves `/status/:token` (client-side route) at `200`. No Chrome
+  automation available this session (declined), so the actual click →
+  `navigate()` → render sequence wasn't observed in a live browser — noted
+  as a gap below rather than assumed.
 
 ## Phase 3 — Guest status & position
 
