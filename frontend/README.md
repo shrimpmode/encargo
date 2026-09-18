@@ -1,8 +1,15 @@
 # Digital Waitlist — Frontend
 
-React + TypeScript (Vite) frontend for the Digital Waitlist pilot. See
-`../specs/001-digital-waitlist/` for the spec, plan, and tasks, and
-`../backend/README.md` for running the API this depends on.
+React + TypeScript (Vite) frontend, styled with Tailwind CSS, for the
+Digital Waitlist pilot. See `../specs/001-digital-waitlist/` for the spec,
+plan, and tasks, and `../backend/README.md` for running the API this
+depends on.
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) (with npm).
+- The backend running — see `../backend/README.md`. Without it, the app
+  loads but every request (join, status, host queue) will fail.
 
 ## Running locally
 
@@ -28,37 +35,28 @@ guest, watch them appear on the host page within 5s, then click "Llamar"
 and watch the guest's `/status/:token` tab flip to the called state on its
 next poll.
 
----
+## Common commands
 
-# React + TypeScript + Vite
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server with hot reload |
+| `npm run build` | Type-check (`tsc -b`) and build for production |
+| `npm run lint` | Run oxlint |
+| `npm run preview` | Serve the production build locally |
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Environment variables
 
-Currently, two official plugins are available:
+`VITE_API_BASE_URL` — the backend's base URL. Defaults to
+`http://localhost:8000` if unset, so `.env` is optional for the standard
+local setup; copy `.env.example` to `.env` only if the backend runs
+somewhere else.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Project structure
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
 ```
-
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+src/
+  App.tsx          # routes
+  pages/            # Join, Status, Host — one file per route
+  api/
+    client.ts        # typed fetch helpers + the 5s polling hook
+```
