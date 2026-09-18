@@ -9,6 +9,12 @@ class WaitlistEntryNotFoundError(Exception):
         self.token = token
 
 
+class WaitlistCallConflictError(Exception):
+    def __init__(self, restaurant_id: int, entry_id: int) -> None:
+        self.restaurant_id = restaurant_id
+        self.entry_id = entry_id
+
+
 @dataclass
 class WaitlistStatus:
     state: WaitlistState
@@ -38,3 +44,8 @@ class WaitlistService:
 
     async def list_waiting(self, restaurant_id: int) -> list[WaitlistEntry]:
         return await self._repo.list_waiting(restaurant_id)
+
+    async def call(self, restaurant_id: int, entry_id: int) -> None:
+        updated = await self._repo.call_entry(restaurant_id, entry_id)
+        if not updated:
+            raise WaitlistCallConflictError(restaurant_id, entry_id)
